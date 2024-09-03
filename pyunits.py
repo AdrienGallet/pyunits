@@ -100,7 +100,7 @@ precLevel = 15  # Level of precision for mult/div operations
 
 
 # Physical variable class - made to deal with physical measurements
-class phyVar:
+class pyunits:
     # --- Class constructor
     def __init__(self, name, value=None, unit=None, SIID=None, info=None, formula=None):
         # pytCheck input is sufficient
@@ -108,21 +108,21 @@ class phyVar:
             self.name = name  # Variable name
             self.value = round(value, precLevel)  # Variable value
             self.unit = unit  # Variable unit
-        elif (
-            value == None and unit == None
-        ):  # Check if name string contains input variables
+
+        elif value == None and unit == None:
+            # Check if name string contains input variables
             orgName = name  # Save the name to a seperate variable
             orgName.replace(" ", "")  # Remove any whitespace from the input
             nameSplit = orgName.split("=")  # Split the name
 
             # If length does not equal to 2, then:
             if len(nameSplit) < 2:  # Missing equal sign
-                raise Exception("phyVar() declaration missing an equal [=] sign.")
+                raise Exception("pyunits() declaration missing an equal [=] sign.")
             elif len(nameSplit) > 2:  # Multiple equal signs
                 raise Exception(
-                    "phyVar() declaration has more than one equal [=] sign."
+                    "pyunits() declaration has more than one equal [=] sign."
                 )
-            else:  # Continue to extract phyVar
+            else:  # Continue to extract pyunits
                 self.name = nameSplit[0]  # Retrieve the name
                 tmpOut = re.search(
                     r"[^0-9|^.]", nameSplit[1]
@@ -138,10 +138,10 @@ class phyVar:
                 self.unit = unit  # Variable unit
         elif (value == None and unit != None) or (value != None and unit == None):
             raise Exception(
-                "missing input, need to specify variable name, value and unit. Ex: phyVar('a=10m') or phyVar('a', '10', 'm'))."
+                "missing input, need to specify variable name, value and unit. Ex: pyunits('a=10m') or pyunits('a', '10', 'm'))."
             )
         else:
-            raise Exception("input to phyVar() not valid.")
+            raise Exception("input to pyunits() not valid.")
 
         # Assign other class variables
         self.SIID = SIID  # SI units IDdentifier
@@ -150,14 +150,14 @@ class phyVar:
 
         # --- Establish what unitSet we are dealing with ---
         self.unitSet = None  # Default value in case of error or unknown unitSet
-        lstUnitSet = phyVar.findUnitSet(self.unit)  # Create lstUnitSet
+        lstUnitSet = pyunits.findUnitSet(self.unit)  # Create lstUnitSet
 
         # If list is 0 length, then an unknown unitSet was created (can occur due to multiplication/division of variables).
         if len(lstUnitSet) == 0:  # Unknown unitSet
             # Check that SIID is provided, otherwise raise an exception
             if self.SIID == None:
                 raise Exception(
-                    "unknown units, SIID must be specified within phyVar call."
+                    "unknown units, SIID must be specified within pyunits call."
                 )
             # Assume that if a non-unitSet variable is used, all units are in their "base" form already
             self.unitBase = self.unit
@@ -177,7 +177,7 @@ class phyVar:
     # --- A dunder method to change what is shown with print()
     def __repr__(self):
         rString = (
-            "phyVar('{}', value={}, unit='{}', SIID={}, info={}, formula={})".format(
+            "pyunits('{}', value={}, unit='{}', SIID={}, info={}, formula={})".format(
                 self.name, self.value, self.unit, self.SIID, self.info, self.formula
             )
         )
@@ -188,22 +188,22 @@ class phyVar:
 
     # --- Addition magic  method for arithmetics
     def __add__(self, other):
-        # If "other" is not phyVar, then treat the "other" value as a number of the same units. Hence, simply update the values
-        if not isinstance(other, phyVar):
-            newPhyVar = copy.deepcopy(self)  # Required to return a new variable
+        # If "other" is not pyunits, then treat the "other" value as a number of the same units. Hence, simply update the values
+        if not isinstance(other, pyunits):
+            newpyunits = copy.deepcopy(self)  # Required to return a new variable
             # Update value and base values
-            newPhyVar.value = round(self.value + other, precLevel)
-            if newPhyVar.unitBase == self.unit:
-                newPhyVar.valueBase = round(self.valueBase + other, precLevel)
+            newpyunits.value = round(self.value + other, precLevel)
+            if newpyunits.unitBase == self.unit:
+                newpyunits.valueBase = round(self.valueBase + other, precLevel)
             else:
-                newPhyVar.valueBase = round(
+                newpyunits.valueBase = round(
                     self.valueBase
-                    + phyVar("tmp", other, self.unit).convert(
+                    + pyunits("tmp", other, self.unit).convert(
                         self.unitBase, out="value"
                     ),
                     precLevel,
                 )
-            return newPhyVar  # Return the object itself
+            return newpyunits  # Return the object itself
 
         # If adding accross different unit sets, raise exception (bc it is non-phyisical to add different unitSets together).
         if self.SIID != other.SIID:
@@ -216,30 +216,30 @@ class phyVar:
         # Otherwise, perform addition operation
         tmpName = self.name + "+" + other.name  # Create a new name
         # Check if the unitSet exists within unitDict
-        lstUnitSet = phyVar.findUnitSet(self.unit)
+        lstUnitSet = pyunits.findUnitSet(self.unit)
         if len(lstUnitSet) == 0:  # unit does not exist within unitSets
-            return phyVar(
+            return pyunits(
                 tmpName,
                 round(self.valueBase + other.valueBase, precLevel),
                 self.unitBase,
                 SIID=self.SIID,
                 formula=tmpName,
-            )  # Return new phyVar
+            )  # Return new pyunits
         else:  # List has length 1, meaning unitSet exists
-            return phyVar(
+            return pyunits(
                 tmpName,
                 round(self.valueBase + other.valueBase, precLevel),
                 self.unitBase,
                 formula=tmpName,
-            )  # Return new phyVar
+            )  # Return new pyunits
 
     # --- Subtraction magic, method for arithmetics
     def __sub__(self, other):  # Does negated addition
-        # If "other" is not a phyVar (assuming it is a number)
-        if not isinstance(other, phyVar):
+        # If "other" is not a pyunits (assuming it is a number)
+        if not isinstance(other, pyunits):
             return self.__add__(-other)
 
-        # If it is a phyVar, make the appropriate changes to the "other" phyVar, and then perform addition of it's negative value
+        # If it is a pyunits, make the appropriate changes to the "other" pyunits, and then perform addition of it's negative value
         else:
             # Required in order not make references changes to variable "other"
             other = copy.deepcopy(other)
@@ -247,24 +247,24 @@ class phyVar:
             # Then conduct operation
             other.value *= -1
             other.valueBase *= -1  # Negate values
-            newPhyVar = self.__add__(other)  # Conduct negative addition
+            newpyunits = self.__add__(other)  # Conduct negative addition
 
             # Update the name and formula to reflect true operation
             tmpName = self.name + "-" + other.name
-            newPhyVar.name = tmpName
-            newPhyVar.formula = tmpName
-            return newPhyVar  # Return physical variable
+            newpyunits.name = tmpName
+            newpyunits.formula = tmpName
+            return newpyunits  # Return physical variable
 
     # --- Multiplication magic, method for arithmetics
     def __mul__(self, other):
-        # If "other" is not phyVar, then assume "other" is a number to manipulate the "self" variable. Update both value and baseValue
-        if not isinstance(other, phyVar):
-            newPhyVar = copy.deepcopy(self)  # Required in order not to change self
-            newPhyVar.value = round(self.value * other, precLevel)  # Update the value
-            newPhyVar.valueBase = round(
+        # If "other" is not pyunits, then assume "other" is a number to manipulate the "self" variable. Update both value and baseValue
+        if not isinstance(other, pyunits):
+            newpyunits = copy.deepcopy(self)  # Required in order not to change self
+            newpyunits.value = round(self.value * other, precLevel)  # Update the value
+            newpyunits.valueBase = round(
                 self.valueBase * other, precLevel
             )  # Update the SI value (no conversion needed)
-            return newPhyVar  # Return the object itself
+            return newpyunits  # Return the object itself
 
         # Otherwise perform multiplication operation
         tmpName = self.name + "*" + other.name  # Create a new name
@@ -273,14 +273,14 @@ class phyVar:
         newSIID = [sum(i) for i in zip(self.SIID, other.SIID)]
 
         # Check if the unitSet exists within unitDict
-        lstUnitSet = phyVar.findUnitSet(newSIID)
+        lstUnitSet = pyunits.findUnitSet(newSIID)
         if len(lstUnitSet) == 0:  # unitSet does not exist
-            tmpUnit = phyVar.findUnitFromSIID(
+            tmpUnit = pyunits.findUnitFromSIID(
                 newSIID
             )  # Find the correct unit from SIID
 
             # Conduct operation
-            return phyVar(
+            return pyunits(
                 tmpName,
                 round(self.valueBase * other.valueBase, precLevel),
                 tmpUnit,
@@ -293,7 +293,7 @@ class phyVar:
             tmpUnit = unitDict[lstUnitSet[0]][2]  # Assign unit name
 
             # Conduct operation
-            return phyVar(
+            return pyunits(
                 tmpName,
                 round(self.valueBase * other.valueBase, precLevel),
                 tmpUnit,
@@ -302,11 +302,11 @@ class phyVar:
 
     # --- Division magic, method for arithmetics
     def __truediv__(self, other):
-        # If "other" is not a phyVar (assuming it is a number)
-        if not isinstance(other, phyVar):
+        # If "other" is not a pyunits (assuming it is a number)
+        if not isinstance(other, pyunits):
             return self.__mul__(1 / other)
 
-        # If it is a phyVar, make the appropriate changes to the "other" phyVar
+        # If it is a pyunits, make the appropriate changes to the "other" pyunits
         else:
             # Deepcopy required to make changes to "other" variable
             other = copy.deepcopy(other)
@@ -315,13 +315,13 @@ class phyVar:
             other.value = 1 / other.value
             other.valueBase = 1 / other.valueBase  # Invert values
             other.SIID = [i * -1 for i in other.SIID]
-            newPhyVar = self.__mul__(other)  # Conduct inverted multiplication
+            newpyunits = self.__mul__(other)  # Conduct inverted multiplication
 
             # Update the name and formula to reflect true operation
             tmpName = self.name + "/" + other.name
-            newPhyVar.name = tmpName
-            newPhyVar.formula = tmpName
-            return newPhyVar  # Return physical variable
+            newpyunits.name = tmpName
+            newpyunits.formula = tmpName
+            return newpyunits  # Return physical variable
 
     # --- Power magic, method for arithmetics
     def __pow__(self, other, mod=None):
@@ -336,15 +336,17 @@ class phyVar:
         tmpSIID = [round(i * other, precLevel) for i in self.SIID]
 
         # Check if the unitSet exists within unitDict
-        lstUnitSet = phyVar.findUnitSet(tmpSIID)
+        lstUnitSet = pyunits.findUnitSet(tmpSIID)
         if len(lstUnitSet) == 0:  # unitSet does not exist
-            tmpUnitBase = phyVar.findUnitFromSIID(tmpSIID)  # Find the correct unit
+            tmpUnitBase = pyunits.findUnitFromSIID(tmpSIID)  # Find the correct unit
         else:  # Only other option is that len(lstUnitSet) == 1, the unitSet exists
             tmpUnitBase = unitDict[lstUnitSet[0]][2]  # Assign unit name
 
         tmpName = self.name + "^" + str(other)  # Create a new name
 
-        return phyVar(tmpName, tmpValueBase, tmpUnitBase, SIID=tmpSIID, formula=tmpName)
+        return pyunits(
+            tmpName, tmpValueBase, tmpUnitBase, SIID=tmpSIID, formula=tmpName
+        )
 
     # --- For reverse addition, subtraction, multiplication and division
     def __radd__(self, other):
@@ -363,92 +365,92 @@ class phyVar:
         newSelf.valueBase = 1 / newSelf.valueBase
         newSelf.SIID = [i * -1 for i in newSelf.SIID]
 
-        # Convert other into phyVar (otherwise SIID is not updated)
-        other = phyVar(str(other), other, "")
-        newPhyVar = newSelf.__mul__(other)  # Conduct inverted multiplication
+        # Convert other into pyunits (otherwise SIID is not updated)
+        other = pyunits(str(other), other, "")
+        newpyunits = newSelf.__mul__(other)  # Conduct inverted multiplication
 
         # Update the name and formula to reflect true operation
         tmpName = other.name + "/" + newSelf.name
-        newPhyVar.name = tmpName
-        newPhyVar.formula = tmpName
-        return newPhyVar  # Return physical variable
+        newpyunits.name = tmpName
+        newpyunits.formula = tmpName
+        return newpyunits  # Return physical variable
 
     # --- Unary arithemtic, negative
     def __neg__(self):
-        newPhyVar = copy.deepcopy(self)
-        newPhyVar.value *= -1
-        newPhyVar.valueBase *= -1
-        return newPhyVar
+        newpyunits = copy.deepcopy(self)
+        newpyunits.value *= -1
+        newpyunits.valueBase *= -1
+        return newpyunits
 
     # --- Unary arithemtic, absolute
     def __abs__(self):
-        newPhyVar = copy.deepcopy(self)
-        newPhyVar.value = abs(newPhyVar.value)
-        newPhyVar.valueBase = abs(newPhyVar.valueBase)
-        return newPhyVar
+        newpyunits = copy.deepcopy(self)
+        newpyunits.value = abs(newpyunits.value)
+        newpyunits.valueBase = abs(newpyunits.valueBase)
+        return newpyunits
 
     # --- Comparison magic, less than
     def __lt__(self, other):
-        if not isinstance(other, phyVar):
+        if not isinstance(other, pyunits):
             return round(self.value, precLevel) < round(other, precLevel)
 
         # Ensure variables are the same SIID
-        phyVar.checkSameSIIDCompare(self, other)
+        pyunits.checkSameSIIDCompare(self, other)
 
         # If no errors, then conduct comparison
         return round(self.valueBase, precLevel) < round(other.valueBase, precLevel)
 
     # --- Comparison magic, greater than
     def __gt__(self, other):
-        if not isinstance(other, phyVar):
+        if not isinstance(other, pyunits):
             return round(self.value, precLevel) > round(other, precLevel)
 
         # Ensure variables are the same SIID
-        phyVar.checkSameSIIDCompare(self, other)
+        pyunits.checkSameSIIDCompare(self, other)
 
         # If no errors, then conduct comparison
         return round(self.valueBase, precLevel) > round(other.valueBase, precLevel)
 
     # --- Comparison magic, less than or equal
     def __le__(self, other):
-        if not isinstance(other, phyVar):
+        if not isinstance(other, pyunits):
             return round(self.value, precLevel) <= round(other, precLevel)
 
         # Ensure variables are the same SIID
-        phyVar.checkSameSIIDCompare(self, other)
+        pyunits.checkSameSIIDCompare(self, other)
 
         # If no errors, then conduct comparison
         return round(self.valueBase, precLevel) <= round(other.valueBase, precLevel)
 
     # --- Comparison magic, greater than or equal
     def __le__(self, other):
-        if not isinstance(other, phyVar):
+        if not isinstance(other, pyunits):
             return round(self.value, precLevel) >= round(other, precLevel)
 
         # Ensure variables are the same SIID
-        phyVar.checkSameSIIDCompare(self, other)
+        pyunits.checkSameSIIDCompare(self, other)
 
         # If no errors, then conduct comparison
         return round(self.valueBase, precLevel) >= round(other.valueBase, precLevel)
 
     # --- Comparison magic, equal to
     def __le__(self, other):
-        if not isinstance(other, phyVar):
+        if not isinstance(other, pyunits):
             return round(self.value, precLevel) == round(other, precLevel)
 
         # Ensure variables are the same SIID
-        phyVar.checkSameSIIDCompare(self, other)
+        pyunits.checkSameSIIDCompare(self, other)
 
         # If no errors, then conduct comparison
         return round(self.valueBase, precLevel) == round(other.valueBase, precLevel)
 
     # --- Comparison magic, not equal to
     def __le__(self, other):
-        if not isinstance(other, phyVar):
+        if not isinstance(other, pyunits):
             return round(self.value, precLevel) != round(other, precLevel)
 
         # Ensure variables are the same SIID
-        phyVar.checkSameSIIDCompare(self, other)
+        pyunits.checkSameSIIDCompare(self, other)
 
         # If no errors, then conduct comparison
         return round(self.valueBase, precLevel) != round(other.valueBase, precLevel)
@@ -592,9 +594,9 @@ def unitDicTest():
 
 # To run code as script
 def main():
-    a = phyVar("a", 200, "mm")
-    b = phyVar("b", 10 * 1e-3, "cm")
-    fy = phyVar("fy=200MPa")
+    a = pyunits("a", 200, "mm")
+    b = pyunits("b", 10 * 1e-3, "cm")
+    fy = pyunits("fy=200MPa")
 
     print(a)
     print(a.stringVar())
